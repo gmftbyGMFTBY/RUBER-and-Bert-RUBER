@@ -30,7 +30,6 @@ from reference_score import *
 from unreference_score import *
 from utils import *
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 
 def collection_result(contextp, groundp, predp):
     # context, groundtruth, generate
@@ -69,6 +68,7 @@ def show(scores, model_scores, mode):
     print('Pearson(p-value):', f'{p}({pp})')
     print('Spearman(p-value):', f'{s}({ss})')
     print(f'========== Method {mode} result ==========')
+    return p, pp, s, ss
     
     
 def read_human_score(path1, path2):
@@ -181,6 +181,12 @@ if __name__ == "__main__":
     show(h1, bleu2_scores, "BLEU-2")
     show(h1, bleu3_scores, "BLEU-3")
     show(h1, bleu4_scores, "BLEU-4")
-    show(h1, unrefer, "BERT s_U")
-    show(h1, refers, "BERT s_R")
-    show(h1, ruber, "BERT RUBER")
+    su_p, su_pp, su_s, su_ss = show(h1, unrefer, "BERT s_U")
+    sr_p, sr_pp, sr_s, sr_ss = show(h1, refers, "BERT s_R")
+    u_p, u_pp, u_s, u_ss = show(h1, ruber, "BERT RUBER")
+    
+    # rest into file
+    with open(f'./data/result.txt', 'a') as f:
+        f.write(f'su_p: {su_p}({su_pp}), su_s: {su_s}({su_ss})' + '\n')
+        f.write(f'sr_p: {sr_p}({sr_pp}), sr_s: {sr_s}({sr_ss})' + '\n')
+        f.write(f'u_p: {u_p}({u_pp}), u_s: {u_s}({u_ss})' + '\n')

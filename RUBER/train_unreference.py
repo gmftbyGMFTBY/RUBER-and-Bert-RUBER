@@ -31,8 +31,6 @@ from tqdm import tqdm
 from unreference_score import *
 from utils import *
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '2'
-
 # set the random seed for the model
 random.seed(123)
 torch.manual_seed(123)

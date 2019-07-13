@@ -20,6 +20,7 @@ import numpy as np
 
 import os
 import sys
+import re
 import time
 import csv
 import math
@@ -281,6 +282,31 @@ def get_batch(qpath, rpath, batch_size):
         if idx > size:
             break
     return None
+
+
+def cal_avf_performance(path):
+    su, sr, u = [], [], []
+    with open(path) as f:
+        p = re.compile('(0\.[0-9]+)\((0\.[0-9]+)\)')
+        for line in f.readlines():
+            m = p.findall(line.strip())
+            if 'su_p' in line:
+                su.append(m)
+            elif 'sr_p' in line:
+                sr.append(m)
+            elif 'u_p' in line:
+                u.append(m)
+            else:
+                raise Exception("Wrong file format !")
+    # cal avg performance
+    avg_u_p, avg_u_s, avg_ruber_p, avg_ruber_s = [], [], [], []
+    for u, ru in zip(su, u):
+        avg_u_p.append(float(u[0][0]))
+        avg_u_s.append(float(u[1][0]))
+        avg_ruber_p.append(float(ru[0][0]))
+        avg_ruber_s.append(float(ru[1][0]))
+    print(f'Unrefer Avg pearson: {round(np.mean(avg_u_p), 5)}, Unrefer Avg spearman: {round(np.mean(avg_u_s), 5)}')
+    print(f'RUBER Avg pearson: {round(np.mean(avg_ruber_p), 5)}, RUBER Avg spearman: {round(np.mean(avg_ruber_s), 5)}')
             
 
 if __name__ == "__main__":
@@ -316,7 +342,4 @@ if __name__ == "__main__":
     make_embedding_matrix('./data/tgt-embed.pkl', word2vec, vec_dim, './data/tgt-vocab.pkl')
     '''
     
-    # Create batches for training unreference score
-    train_iter = get_batch('data/src-train-id.pkl', 'data/tgt-train-id.pkl', 128)
-    for i in train_iter:
-        print(i[1].shape)
+    cal_avf_performance('./data/result.txt')
