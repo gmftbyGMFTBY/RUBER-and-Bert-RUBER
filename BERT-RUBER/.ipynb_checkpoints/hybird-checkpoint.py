@@ -9,6 +9,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.nn.utils import clip_grad_norm_
 import numpy as np
+from rouge import Rouge
 
 import argparse
 import os
@@ -57,6 +58,13 @@ def cal_BLEU(refer, candidate, ngram=1):
     elif ngram == 4:
         weight = (0.25, 0.25, 0.25, 0.25)
     return sentence_bleu(refer, candidate, weights=weight, smoothing_function=smoothie)
+
+def cal_ROUGE(refer, candidate):
+    if not candidate:
+        candidate = 'unk'
+    rouge = Rouge()
+    scores = rouge.get_scores(' '.join(candidate), ' '.join(refer))
+    return scores[0]['rouge-2']['f']
 
 
 def show(scores, model_scores, mode):
@@ -159,6 +167,7 @@ if __name__ == "__main__":
                                                     './data/pred.txt')
     print(f'[!] read file')
     bleu1_scores, bleu2_scores, bleu3_scores, bleu4_scores = [], [], [], []
+    rouge2_scores = []
     
     # BERT RUBER
     refers, unrefer, ruber = model.scores(context, groundtruth, reply, method='Min')
@@ -169,6 +178,7 @@ if __name__ == "__main__":
         bleu2_scores.append(cal_BLEU(refer, condidate, ngram=2))
         bleu3_scores.append(cal_BLEU(refer, condidate, ngram=3))
         bleu4_scores.append(cal_BLEU(refer, condidate, ngram=4))
+        rouge2_scores.append(cal_ROUGE(refer, condidate))
     print(f'[!] compute the score')
     
     # human scores
@@ -181,6 +191,7 @@ if __name__ == "__main__":
     show(h1, bleu2_scores, "BLEU-2")
     show(h1, bleu3_scores, "BLEU-3")
     show(h1, bleu4_scores, "BLEU-4")
+    show(h1, rouge2_scores, "ROUGE-2")
     su_p, su_pp, su_s, su_ss = show(h1, unrefer, "BERT s_U")
     sr_p, sr_pp, sr_s, sr_ss = show(h1, refers, "BERT s_R")
     u_p, u_pp, u_s, u_ss = show(h1, ruber, "BERT RUBER")

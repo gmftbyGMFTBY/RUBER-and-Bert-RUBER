@@ -18,6 +18,7 @@ from torch.nn.utils import clip_grad_norm_
 from torch.nn.utils.rnn import pad_sequence
 import numpy as np
 
+import argparse
 import os
 import sys
 import re
@@ -53,8 +54,8 @@ def load_embedding(VOCAB, path, embedding_dim=300):
     return weights
 
     
-def load_best_model(net):
-    path = f"./ckpt/"
+def load_best_model(dataset, net):
+    path = f"./ckpt/{dataset}/"
     best_acc, best_file = -1, None
     best_epoch = -1
     
@@ -227,17 +228,20 @@ def load_word2vec(fword2vec):
     vecs = {}
     vec_dim=0
     with open(fword2vec) as fin:
-        size, vec_dim = list(map(int, fin.readline().split()))
+        # size, vec_dim = list(map(int, fin.readline().split()))
+        vec_dim = 300
+        size = 0
         for line in fin:
             ps = line.rstrip().split()
             try:
                 vecs[ps[0]] = list(map(float, ps[1:]))
+                size += 1
             except:
                 pass
     return vecs, vec_dim, size
 
 
-def get_batch(qpath, rpath, batch_size):
+def get_batch(qpath, rpath, batch_size, seed=100):
     # getting batch for training unreference score
     # yield iterator
     # return (qbatch * 2, rbatch + negbatch)
@@ -246,6 +250,8 @@ def get_batch(qpath, rpath, batch_size):
         
     with open(rpath, 'rb') as f:
         rlen, rdataset = pickle.load(f)
+        
+    np.random.seed(seed)
     
     size = len(qdataset)    # dataset size
     idx = 0
@@ -286,8 +292,10 @@ def get_batch(qpath, rpath, batch_size):
 
 def cal_avf_performance(path):
     su, sr, u = [], [], []
+    # import ipdb
+    # ipdb.set_trace()
     with open(path) as f:
-        p = re.compile('(0\.[0-9]+)\((0\.[0-9]+)\)')
+        p = re.compile('(0\.[0-9]+)\((.+?)\)')
         for line in f.readlines():
             m = p.findall(line.strip())
             if 'su_p' in line:
@@ -300,9 +308,9 @@ def cal_avf_performance(path):
                 raise Exception("Wrong file format !")
     # cal avg performance
     avg_u_p, avg_u_s, avg_ruber_p, avg_ruber_s = [], [], [], []
-    for u, ru in zip(su, u):
-        avg_u_p.append(float(u[0][0]))
-        avg_u_s.append(float(u[1][0]))
+    for ku, ru in zip(su, u):
+        avg_u_p.append(float(ku[0][0]))
+        avg_u_s.append(float(ku[1][0]))
         avg_ruber_p.append(float(ru[0][0]))
         avg_ruber_s.append(float(ru[1][0]))
     print(f'Unrefer Avg pearson: {round(np.mean(avg_u_p), 5)}, Unrefer Avg spearman: {round(np.mean(avg_u_s), 5)}')
@@ -310,36 +318,49 @@ def cal_avf_performance(path):
             
 
 if __name__ == "__main__":
-    '''
     # Create the vocab file and embedding file for reference score
     # vocab and train id file
-    process_train_file('./data/src-train.txt', 
-                       './data/src-vocab.pkl',
-                       './data/src-train-id.pkl')
-    process_train_file('./data/tgt-train.txt', 
-                       './data/tgt-vocab.pkl',
-                       './data/tgt-train-id.pkl')
-    process_train_file('./data/src-dev.txt', 
-                       './data/src-vocab.pkl',
-                       './data/src-dev-id.pkl',
-                       mode='dev')
-    process_train_file('./data/tgt-dev.txt', 
-                       './data/tgt-vocab.pkl',
-                       './data/tgt-dev-id.pkl',
-                       mode='dev')
-    process_train_file('./data/src-test.txt', 
-                       './data/src-vocab.pkl',
-                       './data/src-test-id.pkl',
-                       mode='test')
-    process_train_file('./data/tgt-test.txt', 
-                       './data/tgt-vocab.pkl',
-                       './data/tgt-test-id.pkl',
-                       mode='test')
+    parser = argparse.ArgumentParser(description='RUBER utils script')
+    parser.add_argument('--dataset', type=str, default='xiaohuangji', 
+                        help='the dataset we used')
+    parser.add_argument('--mode', type=str, default='calculate', 
+                        help='the mode for running the utils scripts (calculate|dataset)')
+    args = parser.parse_args()
     
-    # embedding
-    word2vec, vec_dim, _ = load_word2vec('./embedding/word_embedding.txt')
-    make_embedding_matrix('./data/src-embed.pkl', word2vec, vec_dim, './data/src-vocab.pkl')
-    make_embedding_matrix('./data/tgt-embed.pkl', word2vec, vec_dim, './data/tgt-vocab.pkl')
-    '''
-    
-    cal_avf_performance('./data/result.txt')
+    if args.mode == 'dataset':
+        process_train_file(f'./data/{args.dataset}/src-train.txt', 
+                           f'./data/{args.dataset}/src-vocab.pkl',
+                           f'./data/{args.dataset}/src-train-id.pkl')
+        process_train_file(f'./data/{args.dataset}/tgt-train.txt', 
+                           f'./data/{args.dataset}/tgt-vocab.pkl',
+                           f'./data/{args.dataset}/tgt-train-id.pkl')
+        process_train_file(f'./data/{args.dataset}/src-dev.txt', 
+                           f'./data/{args.dataset}/src-vocab.pkl',
+                           f'./data/{args.dataset}/src-dev-id.pkl',
+                           mode='dev')
+        process_train_file(f'./data/{args.dataset}/tgt-dev.txt', 
+                           f'./data/{args.dataset}/tgt-vocab.pkl',
+                           f'./data/{args.dataset}/tgt-dev-id.pkl',
+                           mode='dev')
+        process_train_file(f'./data/{args.dataset}/src-test.txt', 
+                           f'./data/{args.dataset}/src-vocab.pkl',
+                           f'./data/{args.dataset}/src-test-id.pkl',
+                           mode='test')
+        process_train_file(f'./data/{args.dataset}/tgt-test.txt', 
+                           f'./data/{args.dataset}/tgt-vocab.pkl',
+                           f'./data/{args.dataset}/tgt-test-id.pkl',
+                           mode='test')
+        
+        word2vec, vec_dim, _ = load_word2vec('./embedding/glove.6B.300d.txt')
+        make_embedding_matrix(f'./data/{args.dataset}/src-embed.pkl', 
+                              word2vec, 
+                              vec_dim, 
+                              f'./data/{args.dataset}/src-vocab.pkl')
+        make_embedding_matrix(f'./data/{args.dataset}/tgt-embed.pkl', 
+                              word2vec, 
+                              vec_dim, 
+                              f'./data/{args.dataset}/tgt-vocab.pkl')
+    elif args.mode == 'calculate':
+        cal_avf_performance(f'./data/{args.dataset}/result.txt')
+    else:
+        print('[!] Wrong mode')

@@ -112,7 +112,7 @@ def process_train_file(path, embed_path, batch_size=128):
 def cal_avf_performance(path):
     su, sr, u = [], [], []
     with open(path) as f:
-        p = re.compile('(0\.[0-9]+)\((0\.[0-9]+)\)')
+        p = re.compile('(0\.[0-9]+)\((.+?)\)')
         for line in f.readlines():
             m = p.findall(line.strip())
             if 'su_p' in line:
@@ -125,9 +125,9 @@ def cal_avf_performance(path):
                 raise Exception("Wrong file format !")
     # cal avg performance
     avg_u_p, avg_u_s, avg_ruber_p, avg_ruber_s = [], [], [], []
-    for u, ru in zip(su, u):
-        avg_u_p.append(float(u[0][0]))
-        avg_u_s.append(float(u[1][0]))
+    for ku, ru in zip(su, u):
+        avg_u_p.append(float(ku[0][0]))
+        avg_u_s.append(float(ku[1][0]))
         avg_ruber_p.append(float(ru[0][0]))
         avg_ruber_s.append(float(ru[1][0]))
     print(f'Unrefer Avg pearson: {round(np.mean(avg_u_p), 5)}, Unrefer Avg spearman: {round(np.mean(avg_u_s), 5)}')

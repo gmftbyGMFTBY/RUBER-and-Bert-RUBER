@@ -14,6 +14,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.nn.utils import clip_grad_norm_
 import numpy as np
+from rouge import Rouge
 
 import argparse
 import os
@@ -35,6 +36,12 @@ from unreference_score import *
 from utils import *
 
 
+parser = argparse.ArgumentParser(description='RUBER utils script')
+parser.add_argument('--dataset', type=str, default='xiaohuangji', 
+                    help='the dataset we used')
+args = parser.parse_args()
+
+
 def tokenizer(text):
     # use spacy tokenizer function
     return [tok for tok in text.split()]
@@ -43,19 +50,19 @@ def tokenizer(text):
 class RUBER:
     
     def __init__(self):
-        with open('data/tgt-vocab.pkl', 'rb') as f:
+        with open(f'data/{args.dataset}/tgt-vocab.pkl', 'rb') as f:
             TARGET = pickle.load(f)
-        with open('data/src-vocab.pkl', 'rb') as f:
+        with open(f'data/{args.dataset}/src-vocab.pkl', 'rb') as f:
             srcv = pickle.load(f)
-        with open('data/tgt-vocab.pkl', 'rb') as f:
+        with open(f'data/{args.dataset}/tgt-vocab.pkl', 'rb') as f:
             tgtv = pickle.load(f)
         self.refer = RUBER_refer('./embedding/word_embedding.txt', TARGET,
-                            pooling_type='max_min')
+                            pooling_type='max_min', dataset=args.dataset)
         self.unrefer = RUBER_unrefer(srcv.get_vocab_size(), tgtv.get_vocab_size(),
                                      100, 100)
         self.tgtv = tgtv
         self.srcv = srcv
-        load_best_model(self.unrefer)
+        load_best_model(args.dataset, self.unrefer)
         
         if torch.cuda.is_available():
             self.unrefer.cuda()
@@ -142,6 +149,13 @@ def cal_BLEU(refer, candidate, ngram=1):
     elif ngram == 4:
         weight = (0.25, 0.25, 0.25, 0.25)
     return sentence_bleu(refer, candidate, weights=weight, smoothing_function=smoothie)
+
+def cal_ROUGE(refer, candidate):
+    if not candidate:
+        candidate = 'unk'
+    rouge = Rouge()
+    scores = rouge.get_scores(' '.join(candidate), ' '.join(refer))
+    return scores[0]['rouge-2']['f']
     
 
 def show(scores, model_scores, mode):
@@ -156,7 +170,7 @@ def show(scores, model_scores, mode):
     return p, pp, s, ss
     
 
-def read_human_score(path1, path2):
+def read_human_score(path1, path2, path3):
     def read_file(path):
         with open(path) as f:
             score = []
@@ -165,7 +179,8 @@ def read_human_score(path1, path2):
         return score
     score1 = read_file(path1)
     score2 = read_file(path2)
-    return score1, score2
+    score3 = read_file(path3)
+    return score1, score2, score3
     
 
 
@@ -176,39 +191,57 @@ if __name__ == "__main__":
         torch.cuda.manual_seed_all(123)
         
     model = RUBER()
-    context, groundtruth, reply = collection_result('./data/sample-300.txt',
-                                                    './data/sample-300-tgt.txt',
-                                                    './data/pred.txt')
+    context, groundtruth, reply = collection_result(f'./data/{args.dataset}/sample-300.txt',
+                                                    f'./data/{args.dataset}/sample-300-tgt.txt',
+                                                    f'./data/{args.dataset}/pred.txt')
     print(f'[!] read file')
     bleu1_scores, bleu2_scores, bleu3_scores, bleu4_scores = [], [], [], []
+    rouge2_scores = []
     
     # RUBER
     refers, unrefer, ruber = model.scores(context, groundtruth, reply, method='Min')
     # BLEU
     for c, g, r in zip(context, groundtruth, reply):
+        if not g:
+            g = '<unk>'
+        # nlgscores = compute_individual_metrics([g], r, no_overlap=False,
+        #                                        no_skipthoughts=True,
+        #                                        no_glove=True)
+        # cider_scores.append(nlgscores['CIDEr'])
+        # meteor_scores.append(nlgscores['METEOR'])
+        
         refer, condidate = g.split(), r.split()
+        if not refer:
+            refer = ['<unk>']
+        if len(condidate) == 1:
+            condidate.append('<unk>')
         bleu1_scores.append(cal_BLEU(refer, condidate, ngram=1))
         bleu2_scores.append(cal_BLEU(refer, condidate, ngram=2))
         bleu3_scores.append(cal_BLEU(refer, condidate, ngram=3))
         bleu4_scores.append(cal_BLEU(refer, condidate, ngram=4))
+        rouge2_scores.append(cal_ROUGE(refer, condidate))
     print(f'[!] compute the score')
         
     # human scores
-    h1, h2 = read_human_score('./data/lantian1-xiaohuangji-rest.txt',
-                              './data/lantian2-xiaohuangji-rest.txt')
+    h1, h2, h3 = read_human_score(f'./data/{args.dataset}/person1-{args.dataset}-rest.txt',
+                                  f'./data/{args.dataset}/person2-{args.dataset}-rest.txt',
+                                  f'./data/{args.dataset}/person3-{args.dataset}-rest.txt')
     print(f'[!] read human score')
     
-    show(h1, h2, 'Human')
+    show(h1, h2, 'Human 1v2')
+    show(h1, h3, 'Human 1v3')
+    show(h2, h3, 'Human 2v3')
     show(h1, bleu1_scores, "BLEU-1")
     show(h1, bleu2_scores, "BLEU-2")
     show(h1, bleu3_scores, "BLEU-3")
     show(h1, bleu4_scores, "BLEU-4")
+    show(h1, rouge2_scores, "ROUGE-2")
     su_p, su_pp, su_s, su_ss = show(h1, unrefer, "s_U")
     sr_p, sr_pp, sr_s, sr_ss = show(h1, refers, "s_R")
     u_p, u_pp, u_s, u_ss = show(h1, ruber, "RUBER")
     
     # rest into file
-    with open(f'./data/result.txt', 'a') as f:
+    with open(f'./data/{args.dataset}/result.txt', 'a') as f:
         f.write(f'su_p: {su_p}({su_pp}), su_s: {su_s}({su_ss})' + '\n')
         f.write(f'sr_p: {sr_p}({sr_pp}), sr_s: {sr_s}({sr_ss})' + '\n')
         f.write(f'u_p: {u_p}({u_pp}), u_s: {u_s}({u_ss})' + '\n')

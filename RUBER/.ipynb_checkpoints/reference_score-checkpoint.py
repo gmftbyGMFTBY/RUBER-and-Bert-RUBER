@@ -36,10 +36,10 @@ class RUBER_refer():
     """
     
     def __init__(self, path, target_vocab, special_words=None, 
-                 vector_size=300, pooling_type='max_min'):
+                 vector_size=300, pooling_type='max_min', dataset='tencent'):
         self.vector_size = vector_size
         self.special_words = special_words
-        self.target_embed = pickle.load(open('./data/tgt-embed.pkl', 'rb'))
+        self.target_embed = pickle.load(open(f'./data/{dataset}/tgt-embed.pkl', 'rb'))
         
         if pooling_type=='max_min':
             self.pooling = self.max_min_pooling

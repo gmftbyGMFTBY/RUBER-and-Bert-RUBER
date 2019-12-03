@@ -36,6 +36,19 @@ random.seed(123)
 torch.manual_seed(123)
 if torch.cuda.is_available():
     torch.cuda.manual_seed_all(123)
+    
+    
+parser = argparse.ArgumentParser(description='EPN-RUBER utils script')
+parser.add_argument('--seed', type=int, default=123, 
+                    help='seed for random init')
+parser.add_argument('--lr', type=float, default=1e-3, 
+                    help='learning rate')
+parser.add_argument('--weight_decay', type=float, default=1e-4, 
+                    help='weight decay ratio')
+parser.add_argument('--dataset', type=str, default='xiaohuangji', 
+                    help='the dataset we used')
+
+args = parser.parse_args()
 
 
 def train(data_iter, net, optimizer, 
@@ -137,10 +150,12 @@ def test(net, test_data):
     
 def main(trainqpath, trainrpath, devqpath, devrpath,
          testqpath, testrpath, weight_decay=1e-4, lr=1e-3):
-    with open('data/src-vocab.pkl', 'rb') as f:
+    # if training acc is nearly 0.5, try to use lr = 1e-4, 
+    # because of the unstable training environment
+    with open(f'data/{args.dataset}/src-vocab.pkl', 'rb') as f:
         srcv = pickle.load(f)
         
-    with open('data/tgt-vocab.pkl', 'rb') as f:
+    with open(f'data/{args.dataset}/tgt-vocab.pkl', 'rb') as f:
         tgtv = pickle.load(f)
     
     net = RUBER_unrefer(srcv.get_vocab_size(), tgtv.get_vocab_size(),
@@ -160,16 +175,16 @@ def main(trainqpath, trainrpath, devqpath, devrpath,
     best_metric = -1
     
     # clear the result
-    os.system(f"rm ./ckpt/*")
+    os.system(f"rm ./ckpt/{args.dataset}/*")
     print(f"[!] Clear the checkpoints under ckpt")
     
     patience = 0
     begin_time = time.time()
     idxx = 1
     for epoch in pbar:
-        train_iter = get_batch(trainqpath, trainrpath, 128)
-        dev_iter = get_batch(devqpath, devrpath, 128)
-        test_iter = get_batch(testqpath, testrpath, 128)
+        train_iter = get_batch(trainqpath, trainrpath, 128, seed=args.seed)
+        dev_iter = get_batch(devqpath, devrpath, 128, args.seed)
+        test_iter = get_batch(testqpath, testrpath, 128, args.seed)
     
         training_loss = train(train_iter, net, optimizer)
         validation_loss, validation_metric = validation(dev_iter, net)
@@ -189,10 +204,14 @@ def main(trainqpath, trainrpath, devqpath, devrpath,
                  'optimizer': optimizer.state_dict(), 
                  'epoch': epoch}
         torch.save(state,
-            f'./ckpt/Acc_{validation_metric}_vloss_{validation_loss}_epoch_{epoch}.pt')
+            f'./ckpt/{args.dataset}/Acc_{validation_metric}_vloss_{validation_loss}_epoch_{epoch}.pt')
         
         pbar.set_description(f"loss(train-dev): {training_loss}-{validation_loss}, Acc: {validation_metric}, patience: {patience}")
         idxx += 1
+        
+        if patience > early_stop_patience:
+            break
+            print('[!] early stop')
     
     pbar.close()
 
@@ -204,7 +223,7 @@ def main(trainqpath, trainrpath, devqpath, devrpath,
     print(f"Cost {hour}h, {minute}m, {round(second, 2)}s")
     
     # load best and test
-    load_best_model(net)
+    load_best_model(args.dataset, net)
     
     # test
     test(net, test_iter)
@@ -212,9 +231,10 @@ def main(trainqpath, trainrpath, devqpath, devrpath,
 
 if __name__ == "__main__":
     # train the model
-    main('data/src-train-id.pkl',
-         'data/tgt-train-id.pkl',
-         'data/src-dev-id.pkl',
-         'data/tgt-dev-id.pkl',
-         'data/src-test-id.pkl',
-         'data/tgt-test-id.pkl')
+    main(f'./data/{args.dataset}/src-train-id.pkl',
+         f'./data/{args.dataset}/tgt-train-id.pkl',
+         f'./data/{args.dataset}/src-dev-id.pkl',
+         f'./data/{args.dataset}/tgt-dev-id.pkl',
+         f'./data/{args.dataset}/src-test-id.pkl',
+         f'./data/{args.dataset}/tgt-test-id.pkl',
+         lr=args.lr, weight_decay=args.weight_decay)
