@@ -1,13 +1,21 @@
 #!/bin/bash
 
 # ========== train with weight ==========
-rm ./data/result.txt
 
-for i in {1..10}
+cuda=$1
+dataset=$2
+model=$3
+
+rm ./data/$dataset/result.txt
+
+for i in {1..1}
 do
     echo "========== Iteration $i begins =========="
-    CUDA_VISIBLE_DEVICES=0 python train_unreference.py
-    CUDA_VISIBLE_DEVICES=0 python hybird.py
+    CUDA_VISIBLE_DEVICES=$cuda python train_unreference.py \
+        --dataset $dataset
+        
+    CUDA_VISIBLE_DEVICES=$cuda python hybird.py \
+        --mode generate \
+        --dataset $dataset \
+        --model $model
 done
-
-python utils.py

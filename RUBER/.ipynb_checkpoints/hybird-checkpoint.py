@@ -191,8 +191,8 @@ if __name__ == "__main__":
         torch.cuda.manual_seed_all(123)
         
     model = RUBER()
-    context, groundtruth, reply = collection_result(f'./data/{args.dataset}/sample-300.txt',
-                                                    f'./data/{args.dataset}/sample-300-tgt.txt',
+    context, groundtruth, reply = collection_result(f'./data/{args.dataset}/sample-100.txt',
+                                                    f'./data/{args.dataset}/sample-100-tgt.txt',
                                                     f'./data/{args.dataset}/pred.txt')
     print(f'[!] read file')
     bleu1_scores, bleu2_scores, bleu3_scores, bleu4_scores = [], [], [], []

@@ -15,10 +15,11 @@ import numpy as np
 import os
 import re
 from bert_serving.client import BertClient
+import argparse
 
 
-def load_best_model(net):
-    path = f"./ckpt/"
+def load_best_model(net, dataset):
+    path = f"./ckpt/{dataset}/"
     best_acc, best_file = -1, None
     best_epoch = -1
     
@@ -86,22 +87,47 @@ def process_train_file(path, embed_path, batch_size=128):
     # batch_size: batch for bert to feedforward
     bc = BertClient()
     dataset = []
+    # non-multi-turn
+    # with open(path) as f:
+    #     for line in f.readlines():
+    #         dataset.append(''.join(line.strip().split()))
+    # multi-turn
     with open(path) as f:
         for line in f.readlines():
-            dataset.append(''.join(line.strip().split()))
+            dataset.append(line.strip().split('__eou__')[-100:])
     
     # bert-as-serive
     embed = []
     idx = 0
+    from itertools import accumulate
     while True:
-        batch = dataset[idx:idx+batch_size]
-        rest = bc.encode(batch)    # [batch_size, 768]
-        embed.append(rest)
+        nbatch = dataset[idx:idx+batch_size]
+        batch = []
+        for i in nbatch:
+            batch += i
+        batch_length = list(accumulate([len(i) for i in nbatch]))
+        batch_length = [0] + batch_length
+        rest = bc.encode(batch)
+        fr = []
+        for i in range(1, len(batch_length)):
+            fr.append(np.sum(rest[batch_length[i-1]:batch_length[i]], axis=0))
+        embed.append(np.stack(fr))    # [b, 768]
         idx += batch_size
         if idx > len(dataset):
             break
-        print(f'{idx} / {len(dataset)}', end='\r')
-    embed = np.concatenate(embed)  # [dataset_size, 768]
+        print(f'{path}: {idx} / {len(dataset)}', end='\r')
+    embed = np.concatenate(embed)
+    print(f'embed shape: {embed.shape}')
+    # no-multi-turn
+    # while True:
+    #     batch = dataset[idx:idx+batch_size]
+    #     rest = bc.encode(batch)    # [batch_size, 768]
+    #     embed.append(rest)
+    #     idx += batch_size
+    #     if idx > len(dataset):
+    #         break
+    #     print(f'{idx} / {len(dataset)}', end='\r')
+    # embed = np.concatenate(embed)  # [dataset_size, 768]
     
     with open(embed_path, 'wb') as f:
         pickle.dump(embed, f)
@@ -136,10 +162,22 @@ def cal_avf_performance(path):
             
 
 if __name__ == "__main__":
-    # process_train_file('./data/src-train.txt', './data/src-train.embed')
-    # process_train_file('./data/tgt-train.txt', './data/tgt-train.embed')
-    # process_train_file('./data/src-dev.txt', './data/src-dev.embed')
-    # process_train_file('./data/tgt-dev.txt', './data/tgt-dev.embed')
-    # process_train_file('./data/src-test.txt', './data/src-test.embed')
-    # process_train_file('./data/tgt-test.txt', './data/tgt-test.embed')
-    cal_avf_performance('./data/result.txt')
+    parser = argparse.ArgumentParser(description='Train script')
+    parser.add_argument('--mode', type=str, default=None)
+    parser.add_argument('--dataset', type=str, default=None)
+    args = parser.parse_args()
+    if args.mode == 'calculate':
+        cal_avf_performance(f'./data/{args.dataset}/result.txt')
+    elif args.mode == 'process':
+        process_train_file(f'./data/{args.dataset}/src-train.txt', 
+                           f'./data/{args.dataset}/src-train.embed')
+        process_train_file(f'./data/{args.dataset}/tgt-train.txt', 
+                           f'./data/{args.dataset}/tgt-train.embed')
+        process_train_file(f'./data/{args.dataset}/src-dev.txt', 
+                           f'./data/{args.dataset}/src-dev.embed')
+        process_train_file(f'./data/{args.dataset}/tgt-dev.txt', 
+                           f'./data/{args.dataset}/tgt-dev.embed')
+        process_train_file(f'./data/{args.dataset}/src-test.txt', 
+                           f'./data/{args.dataset}/src-test.embed')
+        process_train_file(f'./data/{args.dataset}/tgt-test.txt', 
+                           f'./data/{args.dataset}/tgt-test.embed')

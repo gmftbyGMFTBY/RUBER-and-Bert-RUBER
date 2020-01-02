@@ -94,7 +94,7 @@ def test(net, data_iter):
     print('[!] test_Acc', test_acc)
     
     
-def main(trainqpath, trainrpath, devqpath, devrpath, testqpath, testrpath, 
+def main(trainqpath, trainrpath, devqpath, devrpath, testqpath, testrpath, dataset,
          weight_decay=1e-4, lr=1e-3):
     net = BERT_RUBER_unrefer(768, dropout=0.5)
     if torch.cuda.is_available():
@@ -109,7 +109,7 @@ def main(trainqpath, trainrpath, devqpath, devrpath, testqpath, testrpath,
     min_loss = np.inf
     best_metric = -1
     
-    os.system(f'rm ./ckpt/*')
+    os.system(f'rm ./ckpt/{dataset}/*')
     print(f'[!] Clear the checkpoints under ckpt')
     
     patience = 0
@@ -137,7 +137,7 @@ def main(trainqpath, trainrpath, devqpath, devrpath, testqpath, testrpath,
                  'optimizer': optimizer.state_dict(), 
                  'epoch': epoch}
         torch.save(state,
-            f'./ckpt/Acc_{validation_metric}_vloss_{validation_loss}_epoch_{epoch}.pt')
+            f'./ckpt/{dataset}/Acc_{validation_metric}_vloss_{validation_loss}_epoch_{epoch}.pt')
         
         pbar.set_description(f"loss(train-dev): {training_loss}-{validation_loss}, Acc: {validation_metric}, patience: {patience}")
     pbar.close()
@@ -150,17 +150,27 @@ def main(trainqpath, trainrpath, devqpath, devrpath, testqpath, testrpath,
     print(f"Cost {hour}h, {minute}m, {round(second, 2)}s")
     
     # load best and test
-    load_best_model(net)
+    # load_best_model(net)
     
     # test
-    test(net, test_iter)
+    # test(net, test_iter)
     
 
 
 if __name__ == "__main__":
-    main('data/src-train.embed',
-         'data/tgt-train.embed',
-         'data/src-dev.embed',
-         'data/tgt-dev.embed',
-         'data/src-test.embed',
-         'data/tgt-test.embed')
+    parser = argparse.ArgumentParser(description='Train script')
+    parser.add_argument('--dataset', type=str, default=None, help='')
+    
+    args = parser.parse_args()
+
+    # show the parameters
+    print('[!] Parameters:')
+    print(args)
+    
+    main(f'data/{args.dataset}/src-train.embed',
+         f'data/{args.dataset}/tgt-train.embed',
+         f'data/{args.dataset}/src-dev.embed',
+         f'data/{args.dataset}/tgt-dev.embed',
+         f'data/{args.dataset}/src-test.embed',
+         f'data/{args.dataset}/tgt-test.embed',
+         args.dataset)

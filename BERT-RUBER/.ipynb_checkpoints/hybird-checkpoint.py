@@ -12,6 +12,7 @@ import numpy as np
 from rouge import Rouge
 
 import argparse
+import pickle
 import os
 import sys
 import time
@@ -93,11 +94,11 @@ def read_human_score(path1, path2):
 
 class BERT_RUBER:
     
-    def __init__(self):
+    def __init__(self, dataset):
         self.refer = BERT_RUBER_refer()
         self.unrefer = BERT_RUBER_unrefer(768)
         
-        load_best_model(self.unrefer)
+        load_best_model(self.unrefer, dataset)
         
         if torch.cuda.is_available():
             self.unrefer.cuda()
@@ -127,6 +128,9 @@ class BERT_RUBER:
         refer_score = self.refer.cos_similarity(groundtruth, reply)
         
         return unrefer_score, refer_score
+    
+    def only_unrefer(self, contexts, rs):
+        pass
     
     def scores(self, contexts, gs, rs, method='Min'):
         refer, unrefer = [], []
@@ -158,46 +162,79 @@ class BERT_RUBER:
             return [max(a,b) for a,b in zip(refer, unrefer)]
         else:
             raise Exception("Can not find the right method")
+            
+def obtain_test_data(path):
+    with open(path) as f:
+        context, groundtruth, pred = [], [], []
+        for idx, line in enumerate(f.readlines()):
+            line = line.strip()
+            if idx % 4 == 0:
+                context.append(line[13:])
+            elif idx % 4 == 1:
+                groundtruth.append(line[13:])
+            elif idx % 4 == 2:
+                pred.append(line[13:])
+            else:
+                pass
+    return context, groundtruth, pred
+            
 
 
 if __name__ == "__main__":
-    model = BERT_RUBER()
-    context, groundtruth, reply = collection_result('./data/sample-300.txt',
-                                                    './data/sample-300-tgt.txt',
-                                                    './data/pred.txt')
-    print(f'[!] read file')
-    bleu1_scores, bleu2_scores, bleu3_scores, bleu4_scores = [], [], [], []
-    rouge2_scores = []
-    
-    # BERT RUBER
-    refers, unrefer, ruber = model.scores(context, groundtruth, reply, method='Min')
-    # BLEU
-    for c, g, r in zip(context, groundtruth, reply):
-        refer, condidate = g.split(), r.split()
-        bleu1_scores.append(cal_BLEU(refer, condidate, ngram=1))
-        bleu2_scores.append(cal_BLEU(refer, condidate, ngram=2))
-        bleu3_scores.append(cal_BLEU(refer, condidate, ngram=3))
-        bleu4_scores.append(cal_BLEU(refer, condidate, ngram=4))
-        rouge2_scores.append(cal_ROUGE(refer, condidate))
-    print(f'[!] compute the score')
-    
-    # human scores
-    h1, h2 = read_human_score('./data/lantian1-xiaohuangji-rest.txt',
-                              './data/lantian2-xiaohuangji-rest.txt')
-    print(f'[!] read human score')
-    
-    show(h1, h2, 'Human')
-    show(h1, bleu1_scores, "BLEU-1")
-    show(h1, bleu2_scores, "BLEU-2")
-    show(h1, bleu3_scores, "BLEU-3")
-    show(h1, bleu4_scores, "BLEU-4")
-    show(h1, rouge2_scores, "ROUGE-2")
-    su_p, su_pp, su_s, su_ss = show(h1, unrefer, "BERT s_U")
-    sr_p, sr_pp, sr_s, sr_ss = show(h1, refers, "BERT s_R")
-    u_p, u_pp, u_s, u_ss = show(h1, ruber, "BERT RUBER")
-    
-    # rest into file
-    with open(f'./data/result.txt', 'a') as f:
-        f.write(f'su_p: {su_p}({su_pp}), su_s: {su_s}({su_ss})' + '\n')
-        f.write(f'sr_p: {sr_p}({sr_pp}), sr_s: {sr_s}({sr_ss})' + '\n')
-        f.write(f'u_p: {u_p}({u_pp}), u_s: {u_s}({u_ss})' + '\n')
+    parser = argparse.ArgumentParser(description='Train script')
+    parser.add_argument('--dataset', type=str, default=None)
+    parser.add_argument('--mode', type=str, default=None)
+    parser.add_argument('--model', type=str, default=None)
+    args = parser.parse_args()
+    if args.mode == 'experiment':
+        model = BERT_RUBER(args.dataset)
+        context, groundtruth, reply = collection_result(f'./data/{args.dataset}/sample-300.txt',
+                                                        f'./data/{args.dataset}/sample-300-tgt.txt',
+                                                        f'./data/{args.dataset}/pred.txt')
+        print(f'[!] read file')
+        bleu1_scores, bleu2_scores, bleu3_scores, bleu4_scores = [], [], [], []
+        rouge2_scores = []
+
+        # BERT RUBER
+        refers, unrefer, ruber = model.scores(context, groundtruth, reply, method='Min')
+        # BLEU
+        for c, g, r in zip(context, groundtruth, reply):
+            refer, condidate = g.split(), r.split()
+            bleu1_scores.append(cal_BLEU(refer, condidate, ngram=1))
+            bleu2_scores.append(cal_BLEU(refer, condidate, ngram=2))
+            bleu3_scores.append(cal_BLEU(refer, condidate, ngram=3))
+            bleu4_scores.append(cal_BLEU(refer, condidate, ngram=4))
+            rouge2_scores.append(cal_ROUGE(refer, condidate))
+        print(f'[!] compute the score')
+
+        # human scores
+        h1, h2 = read_human_score('./data/lantian1-xiaohuangji-rest.txt',
+                                  './data/lantian2-xiaohuangji-rest.txt')
+        print(f'[!] read human score')
+
+        show(h1, h2, 'Human')
+        show(h1, bleu1_scores, "BLEU-1")
+        show(h1, bleu2_scores, "BLEU-2")
+        show(h1, bleu3_scores, "BLEU-3")
+        show(h1, bleu4_scores, "BLEU-4")
+        show(h1, rouge2_scores, "ROUGE-2")
+        su_p, su_pp, su_s, su_ss = show(h1, unrefer, "BERT s_U")
+        sr_p, sr_pp, sr_s, sr_ss = show(h1, refers, "BERT s_R")
+        u_p, u_pp, u_s, u_ss = show(h1, ruber, "BERT RUBER")
+
+        # rest into file
+        with open(f'./data/{args.dataset}/result.txt', 'a') as f:
+            f.write(f'su_p: {su_p}({su_pp}), su_s: {su_s}({su_ss})' + '\n')
+            f.write(f'sr_p: {sr_p}({sr_pp}), sr_s: {sr_s}({sr_ss})' + '\n')
+            f.write(f'u_p: {u_p}({u_pp}), u_s: {u_s}({u_ss})' + '\n')
+    elif args.mode == 'generate':
+        model = BERT_RUBER(args.dataset)
+        context, groundtruth, reply = obtain_test_data(f'./data/{args.dataset}/{args.model}-rest.txt')
+        # BERT RUBER
+        refers, unrefer, ruber = model.scores(context, groundtruth, reply, method='Min')
+        
+        with open(f'./data/{args.dataset}/final_result.pkl', 'wb') as f:
+            pickle.dump(unrefer, f)
+            print(f'[!] write the file into ./data/{args.dataset}/final_result.pkl')
+        f_unrefer = np.mean(unrefer)
+        print(f'BERT-RUBER: {round(f_unrefer, 4)}')
