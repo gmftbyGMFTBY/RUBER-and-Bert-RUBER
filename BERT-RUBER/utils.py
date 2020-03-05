@@ -10,7 +10,6 @@ utils file contains the tool function
 '''
 
 import pickle
-import torch
 import numpy as np
 import os
 import re
@@ -19,6 +18,7 @@ import argparse
 
 
 def load_best_model(net, dataset):
+    import torch
     path = f"./ckpt/{dataset}/"
     best_acc, best_file = -1, None
     best_epoch = -1
@@ -31,11 +31,11 @@ def load_best_model(net, dataset):
             continue
         acc = float(acc)
         epoch = int(epoch)
-        # if epoch > best_epoch:
-        if acc > best_acc:
+        if epoch > best_epoch:
+        # if acc > best_acc:
             best_file = file
-            # best_epoch = epoch
-            best_acc = acc
+            best_epoch = epoch
+            # best_acc = acc
 
     if best_file:
         file_path = path + best_file
@@ -88,46 +88,49 @@ def process_train_file(path, embed_path, batch_size=128):
     bc = BertClient()
     dataset = []
     # non-multi-turn
-    # with open(path) as f:
-    #     for line in f.readlines():
-    #         dataset.append(''.join(line.strip().split()))
-    # multi-turn
     with open(path) as f:
         for line in f.readlines():
-            dataset.append(line.strip().split('__eou__')[-100:])
+            dataset.append(' '.join(line.strip().split()[-200:]))
+    # multi-turn
+    # with open(path) as f:
+    #     for line in f.readlines():
+    #         dataset.append(line.strip().split('__eou__')[-100:])
     
     # bert-as-serive
-    embed = []
-    idx = 0
-    from itertools import accumulate
-    while True:
-        nbatch = dataset[idx:idx+batch_size]
-        batch = []
-        for i in nbatch:
-            batch += i
-        batch_length = list(accumulate([len(i) for i in nbatch]))
-        batch_length = [0] + batch_length
-        rest = bc.encode(batch)
-        fr = []
-        for i in range(1, len(batch_length)):
-            fr.append(np.sum(rest[batch_length[i-1]:batch_length[i]], axis=0))
-        embed.append(np.stack(fr))    # [b, 768]
-        idx += batch_size
-        if idx > len(dataset):
-            break
-        print(f'{path}: {idx} / {len(dataset)}', end='\r')
-    embed = np.concatenate(embed)
-    print(f'embed shape: {embed.shape}')
-    # no-multi-turn
+    # embed = []
+    # idx = 0
+    # from itertools import accumulate
     # while True:
-    #     batch = dataset[idx:idx+batch_size]
-    #     rest = bc.encode(batch)    # [batch_size, 768]
-    #     embed.append(rest)
+    #     nbatch = dataset[idx:idx+batch_size]
+    #     batch = []
+    #     for i in nbatch:
+    #         batch += i
+    #     batch_length = list(accumulate([len(i) for i in nbatch]))
+    #     batch_length = [0] + batch_length
+    #     rest = bc.encode(batch)
+    #     fr = []
+    #     for i in range(1, len(batch_length)):
+    #         fr.append(np.sum(rest[batch_length[i-1]:batch_length[i]], axis=0))
+    #     embed.append(np.stack(fr))    # [b, 768]
     #     idx += batch_size
     #     if idx > len(dataset):
     #         break
-    #     print(f'{idx} / {len(dataset)}', end='\r')
-    # embed = np.concatenate(embed)  # [dataset_size, 768]
+    #     print(f'{path}: {idx} / {len(dataset)}', end='\r')
+    # embed = np.concatenate(embed)
+    # print(f'embed shape: {embed.shape}')
+    
+    # no-multi-turn
+    embed = []
+    idx = 0
+    while True:
+        batch = dataset[idx:idx+batch_size]
+        rest = bc.encode(batch)    # [batch_size, 768]
+        embed.append(rest)
+        idx += batch_size
+        if idx > len(dataset):
+            break
+        print(f'{idx} / {len(dataset)}', end='\r')
+    embed = np.concatenate(embed)  # [dataset_size, 768]
     
     with open(embed_path, 'wb') as f:
         pickle.dump(embed, f)

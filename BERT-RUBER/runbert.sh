@@ -21,6 +21,6 @@ else
     bert-serving-start -model_dir bert_model/uncased_L-12_H-768_A-12 \
         -num_worker=2 \
         -device_map 4 7 \
-        -max_seq_len 100 \
+        -max_seq_len 512 \
         -pooling_strategy REDUCE_MEAN
 fi

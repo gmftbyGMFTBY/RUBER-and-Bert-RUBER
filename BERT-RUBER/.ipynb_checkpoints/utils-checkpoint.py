@@ -31,11 +31,11 @@ def load_best_model(net, dataset):
             continue
         acc = float(acc)
         epoch = int(epoch)
-        # if epoch > best_epoch:
-        if acc > best_acc:
+        if epoch > best_epoch:
+        # if acc > best_acc:
             best_file = file
-            # best_epoch = epoch
-            best_acc = acc
+            best_epoch = epoch
+            # best_acc = acc
 
     if best_file:
         file_path = path + best_file

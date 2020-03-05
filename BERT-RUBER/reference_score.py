@@ -13,7 +13,13 @@ class BERT_RUBER_refer():
         self.bc = BertClient()
     
     def encode_sentence(self, sent):
-        return self.bc.encode([sent]).squeeze(0)    # [768]
+        sent = [' '.join(i.split()[-200:]) for i in sent]
+        return self.bc.encode(sent)    # [batch, 768]
+    
+    def encode_query(self, query):
+        sentences = query.split('__eou__')
+        se = self.bc.encode(sentences)
+        return np.sum(se, axis=0)    # [768]
     
     def cos_similarity(self, groundtruth, generated):
         if generated and groundtruth:

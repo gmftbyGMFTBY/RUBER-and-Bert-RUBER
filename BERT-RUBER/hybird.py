@@ -31,6 +31,7 @@ from nltk.translate.bleu_score import sentence_bleu
 from reference_score import *
 from unreference_score import *
 from utils import *
+from metric.metric import cal_BLEU
 
 
 def collection_result(contextp, groundp, predp):
@@ -48,7 +49,7 @@ def collection_result(contextp, groundp, predp):
     return context, groundtruth, reply
 
 
-def cal_BLEU(refer, candidate, ngram=1):
+def cal_BLEU_(refer, candidate, ngram=1):
     smoothie = SmoothingFunction().method4
     if ngram == 1:
         weight = (1, 0, 0, 0)
@@ -112,47 +113,62 @@ class BERT_RUBER:
         return ret
     
     def score(self, query, groundtruth, reply, method='Min'):
-        q = self.refer.encode_sentence(query)
+        q = self.refer.encode_query(query)
         r = self.refer.encode_sentence(reply)
-        g = self.refer.encode_sentence(groundtruth)
-        q, r, g = torch.from_numpy(q), torch.from_numpy(r), torch.from_numpy(g)
+        # g = self.refer.encode_sentence(groundtruth)
+        # q, r, g = torch.from_numpy(q), torch.from_numpy(r), torch.from_numpy(g)
+        q, r = torch.from_numpy(q), torch.from_numpy(r)
         q = q.unsqueeze(0)
         r = r.unsqueeze(0)
-        g = g.unsqueeze(0)
+        # g = g.unsqueeze(0)
         
         if torch.cuda.is_available():
-            q, r, g = q.cuda(), r.cuda(), g.cuda()
+            # q, r, g = q.cuda(), r.cuda(), g.cuda()
+            q, r = q.cuda(), r.cuda()
         
         unrefer_score = self.unrefer(q, r)
         unrefer_score = unrefer_score[0].item()
-        refer_score = self.refer.cos_similarity(groundtruth, reply)
+        # refer_score = self.refer.cos_similarity(groundtruth, reply)
         
-        return unrefer_score, refer_score
-    
-    def only_unrefer(self, contexts, rs):
-        pass
+        # return unrefer_score, refer_score
+        return unrefer_score
+
+    def score_batch_unrefer(self, query, reply):
+        q = self.refer.encode_sentence(query)
+        r = self.refer.encode_sentence(reply)    # [batch, 768]
+        q, r = torch.from_numpy(q), torch.from_numpy(r)
+        if torch.cuda.is_available():
+            q, r = q.cuda(), r.cuda()
+
+        unrefer_score = self.unrefer(q, r)    # [batch]
+        return unrefer_score.tolist()
     
     def scores(self, contexts, gs, rs, method='Min'):
-        refer, unrefer = [], []
-        pbar = tqdm(zip(contexts, gs, rs))
-        for c, g, r in pbar:
-            c = ''.join(c.split())
-            g = ''.join(g.split())
-            r = ''.join(r.split())
-            if not r:
-                # no words genereated
-                r = '<unk>'
-            if not c:
-                c = '<unk>'
-            unrefer_score, refer_score = self.score(c, g, r, method=method)
-            refer.append(refer_score)
-            unrefer.append(unrefer_score)
-            pbar.set_description('')
-        refer = self.normalize(refer)
-        unrefer = self.normalize(unrefer)
-        ruber = self.hybird_score(refer, unrefer)
-        
-        return refer, unrefer, ruber
+        unrefer = []
+        # for c, g, r in pbar:
+        #     c = ''.join(c.split())
+        #     g = ''.join(g.split())
+        #     r = ''.join(r.split())
+        #     if not r:
+        #         # no words genereated
+        #         r = '<unk>'
+        #     if not c:
+        #         c = '<unk>'
+        idx = 0
+        batch = 512 
+        while idx < len(contexts):
+            c = contexts[idx:idx+batch]
+            r = rs[idx:idx+batch]
+            # unrefer_score, refer_score = self.score(c, g, r, method=method)
+            unrefer_score = self.score_batch_unrefer(c, r)
+            # refer.append(refer_score)
+            unrefer.extend(unrefer_score)
+            idx += batch
+            # print(f'{idx} / {len(contexts)}', end='\r')
+        # refer = self.normalize(refer)
+        # unrefer = self.normalize(unrefer)
+        # ruber = self.hybird_score(refer, unrefer
+        return unrefer
     
     def hybird_score(self, refer, unrefer, method='Min'):
         # make sure refer and unrefer has been normed
@@ -168,12 +184,15 @@ def obtain_test_data(path):
         context, groundtruth, pred = [], [], []
         for idx, line in enumerate(f.readlines()):
             line = line.strip()
+            line = line[13:]
+            if not line:
+                line = '<unk>'
             if idx % 4 == 0:
-                context.append(line[13:])
+                context.append(line)
             elif idx % 4 == 1:
-                groundtruth.append(line[13:])
+                groundtruth.append(line)
             elif idx % 4 == 2:
-                pred.append(line[13:])
+                pred.append(line)
             else:
                 pass
     return context, groundtruth, pred
@@ -188,8 +207,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.mode == 'experiment':
         model = BERT_RUBER(args.dataset)
-        context, groundtruth, reply = collection_result(f'./data/{args.dataset}/sample-300.txt',
-                                                        f'./data/{args.dataset}/sample-300-tgt.txt',
+        context, groundtruth, reply = collection_result(f'./data/{args.dataset}/src-test.txt',
+                                                        f'./data/{args.dataset}/tgt-test.txt',
                                                         f'./data/{args.dataset}/pred.txt')
         print(f'[!] read file')
         bleu1_scores, bleu2_scores, bleu3_scores, bleu4_scores = [], [], [], []
@@ -229,12 +248,54 @@ if __name__ == "__main__":
             f.write(f'u_p: {u_p}({u_pp}), u_s: {u_s}({u_ss})' + '\n')
     elif args.mode == 'generate':
         model = BERT_RUBER(args.dataset)
-        context, groundtruth, reply = obtain_test_data(f'./data/{args.dataset}/{args.model}-rest.txt')
+        print(f'[!] ready to read data from ./data/{args.dataset}/{args.model}-pred.txt')
+        context, groundtruth, reply = obtain_test_data(f'./data/{args.dataset}/{args.model}-pred.txt')
         # BERT RUBER
-        refers, unrefer, ruber = model.scores(context, groundtruth, reply, method='Min')
+        unrefer = model.scores(context, groundtruth, reply, method='Min')
+        # bleu = cal_BLEU(groundtruth, reply)
+        # bleu1, bleu2, bleu3, bleu4 = round(bleu[0], 4), round(bleu[1], 4), round(bleu[2], 4), round(bleu[3], 4)
+        # print(f'bleu(1/2/3/4): {bleu1}/{bleu2}/{bleu3}/{bleu4}')
+        # bleu = sum([bleu1, bleu2, bleu3, bleu4]) / 4
+        # print(f'BLEU-avg: {round(bleu, 4)}')
         
-        with open(f'./data/{args.dataset}/final_result.pkl', 'wb') as f:
-            pickle.dump(unrefer, f)
-            print(f'[!] write the file into ./data/{args.dataset}/final_result.pkl')
+        # with open(f'./data/{args.dataset}/{args.model}-result.pkl', 'wb') as f:
+        #     pickle.dump(unrefer, f)
+        #     print(f'[!] write the file into ./data/{args.dataset}/{args.model}-result.pkl')
         f_unrefer = np.mean(unrefer)
         print(f'BERT-RUBER: {round(f_unrefer, 4)}')
+    elif args.mode == 'bertscore':
+        context, groundtruth, reply = obtain_test_data(f'./data/{args.dataset}/{args.model}-pred.txt')
+        
+        # add the BERTScore
+        from bert_score import score
+        _, _, bert_scores = score(reply, groundtruth, lang='en',
+                                  rescale_with_baseline=True)
+        bert_scores = bert_scores.tolist()
+        bert_scores = [0.0 if math.isnan(score) else score for score in bert_scores]
+        bert_scores = np.mean(bert_scores)
+        print(f'{args.dataset} {args.model} BERTScore: {round(bert_scores, 4)}')
+    elif args.mode == 'pbert':
+        f = open('bert-ptest.txt', 'w')
+        # add the BERTScore
+        from bert_score import score
+        datasets = ['dailydialog', 'empchat', 'personachat']
+        models = ['HRED', 'HRAN', 'DSHRED', 'DSHRED_RA', 'ReCoSa', 'ReCoSa_RA', 'WSeq', 'WSeq_RA']
+        for dataset in datasets:
+            f.write(f'========== {dataset} ==========\n')
+            f.flush()
+            for model in models:
+                if dataset == 'dailydialog' and model != 'WSeq_RA':
+                    continue
+                f.write(f'========== {model} ==========\n')
+                f.flush()
+                for i in range(1, 11):
+                    context, groundtruth, reply = obtain_test_data(f'./data/{dataset}/{model}-{i}-pred.txt')
+        
+                    _, _, bert_scores = score(reply, groundtruth, lang='en',
+                                              rescale_with_baseline=True)
+                    bert_scores = bert_scores.tolist()
+                    bert_scores = [0.0 if math.isnan(score) else score for score in bert_scores]
+                    bert_scores = np.mean(bert_scores)
+                    f.write(f'{dataset} {model}-{i} BERTScore: {round(bert_scores, 4)}\n')
+                    f.flush()
+

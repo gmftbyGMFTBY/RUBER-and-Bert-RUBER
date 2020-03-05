@@ -112,7 +112,7 @@ class BERT_RUBER:
         return ret
     
     def score(self, query, groundtruth, reply, method='Min'):
-        q = self.refer.encode_sentence(query)
+        q = self.refer.encode_query(query)
         r = self.refer.encode_sentence(reply)
         g = self.refer.encode_sentence(groundtruth)
         q, r, g = torch.from_numpy(q), torch.from_numpy(r), torch.from_numpy(g)
@@ -235,6 +235,6 @@ if __name__ == "__main__":
         
         with open(f'./data/{args.dataset}/final_result.pkl', 'wb') as f:
             pickle.dump(unrefer, f)
-            print(f'[!] write the file into ./data/{args.dataset}/final_result.pkl')
+            print(f'[!] write the file into ./data/{args.dataset}/{args.model}-final-result.pkl')
         f_unrefer = np.mean(unrefer)
-        print(f'BERT-RUBER: {round(f_unrefer, 4)}')
+        print(f'BERT-RUBER: {round(f_unrefer, 4)}, {round(np.mean(ruber), 4)}')

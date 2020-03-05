@@ -24,10 +24,10 @@ from unreference_score import *
 from utils import *
 
 # set the random seed for the model
-random.seed(123)
-torch.manual_seed(123)
+random.seed(20)
+torch.manual_seed(20)
 if torch.cuda.is_available():
-    torch.cuda.manual_seed_all(123)
+    torch.cuda.manual_seed_all(20)
     
     
 def train(data_iter, net, optimizer, grad_clip=10):
@@ -103,7 +103,7 @@ def main(trainqpath, trainrpath, devqpath, devrpath, testqpath, testrpath, datas
     
     optimizer = optim.Adam(net.parameters(), lr=lr, weight_decay=weight_decay)
     
-    epoches, grad_clip = 100, 10
+    epoches, grad_clip = 200, 10
     pbar = tqdm(range(1, epoches + 1))
     training_losses, validation_losses, validation_metrices = [], [], []
     min_loss = np.inf
@@ -136,8 +136,14 @@ def main(trainqpath, trainrpath, devqpath, devrpath, testqpath, testrpath, datas
         state = {'net': net.state_dict(), 
                  'optimizer': optimizer.state_dict(), 
                  'epoch': epoch}
-        torch.save(state,
-            f'./ckpt/{dataset}/Acc_{validation_metric}_vloss_{validation_loss}_epoch_{epoch}.pt')
+        
+        if epoch > 25:
+            torch.save(state,
+                f'./ckpt/{dataset}/Acc_{validation_metric}_vloss_{validation_loss}_epoch_{epoch}.pt')
+
+        if patience > 20:
+            print(f'[!] early stop')
+            break
         
         pbar.set_description(f"loss(train-dev): {training_loss}-{validation_loss}, Acc: {validation_metric}, patience: {patience}")
     pbar.close()

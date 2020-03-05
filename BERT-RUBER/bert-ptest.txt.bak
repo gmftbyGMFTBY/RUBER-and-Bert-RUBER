@@ -1,0 +1,79 @@
+========== dailydialog ==========
+========== HRED ==========
+dailydialog HRED-1 BERTScore: 0.0984
+dailydialog HRED-2 BERTScore: 0.0884
+dailydialog HRED-3 BERTScore: 0.1263
+dailydialog HRED-4 BERTScore: 0.0787
+dailydialog HRED-5 BERTScore: 0.1096
+dailydialog HRED-6 BERTScore: 0.0815
+dailydialog HRED-7 BERTScore: 0.0712
+dailydialog HRED-8 BERTScore: 0.1008
+dailydialog HRED-9 BERTScore: 0.1141
+dailydialog HRED-10 BERTScore: 0.1174
+========== HRAN ==========
+dailydialog HRAN-1 BERTScore: 0.1067
+dailydialog HRAN-2 BERTScore: 0.0999
+dailydialog HRAN-3 BERTScore: 0.1407
+dailydialog HRAN-4 BERTScore: 0.0858
+dailydialog HRAN-5 BERTScore: 0.1183
+dailydialog HRAN-6 BERTScore: 0.0845
+dailydialog HRAN-7 BERTScore: 0.0699
+dailydialog HRAN-8 BERTScore: 0.1083
+dailydialog HRAN-9 BERTScore: 0.1275
+dailydialog HRAN-10 BERTScore: 0.1266
+========== DSHRED ==========
+dailydialog DSHRED-1 BERTScore: 0.104
+dailydialog DSHRED-2 BERTScore: 0.0946
+dailydialog DSHRED-3 BERTScore: 0.1354
+dailydialog DSHRED-4 BERTScore: 0.0822
+dailydialog DSHRED-5 BERTScore: 0.1154
+dailydialog DSHRED-6 BERTScore: 0.0882
+dailydialog DSHRED-7 BERTScore: 0.0742
+dailydialog DSHRED-8 BERTScore: 0.1058
+dailydialog DSHRED-9 BERTScore: 0.1237
+dailydialog DSHRED-10 BERTScore: 0.12
+========== DSHRED_RA ==========
+dailydialog DSHRED_RA-1 BERTScore: 0.109
+dailydialog DSHRED_RA-2 BERTScore: 0.0987
+dailydialog DSHRED_RA-3 BERTScore: 0.1444
+dailydialog DSHRED_RA-4 BERTScore: 0.0861
+dailydialog DSHRED_RA-5 BERTScore: 0.1088
+dailydialog DSHRED_RA-6 BERTScore: 0.0863
+dailydialog DSHRED_RA-7 BERTScore: 0.0664
+dailydialog DSHRED_RA-8 BERTScore: 0.1098
+dailydialog DSHRED_RA-9 BERTScore: 0.1279
+dailydialog DSHRED_RA-10 BERTScore: 0.1267
+========== ReCoSa ==========
+dailydialog ReCoSa-1 BERTScore: 0.1099
+dailydialog ReCoSa-2 BERTScore: 0.0973
+dailydialog ReCoSa-3 BERTScore: 0.1415
+dailydialog ReCoSa-4 BERTScore: 0.0839
+dailydialog ReCoSa-5 BERTScore: 0.111
+dailydialog ReCoSa-6 BERTScore: 0.0888
+dailydialog ReCoSa-7 BERTScore: 0.0759
+dailydialog ReCoSa-8 BERTScore: 0.1109
+dailydialog ReCoSa-9 BERTScore: 0.1236
+dailydialog ReCoSa-10 BERTScore: 0.1272
+========== ReCoSa_RA ==========
+dailydialog ReCoSa_RA-1 BERTScore: 0.0993
+dailydialog ReCoSa_RA-2 BERTScore: 0.0894
+dailydialog ReCoSa_RA-3 BERTScore: 0.1349
+dailydialog ReCoSa_RA-4 BERTScore: 0.0732
+dailydialog ReCoSa_RA-5 BERTScore: 0.1191
+dailydialog ReCoSa_RA-6 BERTScore: 0.0817
+dailydialog ReCoSa_RA-7 BERTScore: 0.067
+dailydialog ReCoSa_RA-8 BERTScore: 0.1001
+dailydialog ReCoSa_RA-9 BERTScore: 0.1137
+dailydialog ReCoSa_RA-10 BERTScore: 0.1169
+========== WSeq ==========
+dailydialog WSeq-1 BERTScore: 0.0992
+dailydialog WSeq-2 BERTScore: 0.0941
+dailydialog WSeq-3 BERTScore: 0.1227
+dailydialog WSeq-4 BERTScore: 0.0824
+dailydialog WSeq-5 BERTScore: 0.1037
+dailydialog WSeq-6 BERTScore: 0.0869
+dailydialog WSeq-7 BERTScore: 0.0797
+dailydialog WSeq-8 BERTScore: 0.099
+dailydialog WSeq-9 BERTScore: 0.1145
+dailydialog WSeq-10 BERTScore: 0.1124
+========== Wseq_RA ==========
